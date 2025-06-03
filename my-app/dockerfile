@@ -1,0 +1,46 @@
+# Use an official Maven image to build the application
+FROM ubuntu:18.04
+# Install curl
+# RUN apt-get update && apt-get install -y libcurl3=7.68.0-1ubuntu2.6
+
+
+FROM maven:3.8.8-eclipse-temurin-17 AS build
+# Intentionally install a vulnerable version of a package
+# RUN apt-get update && apt-get install -y libssl1.0.0=1.0.2n-1ubuntu5.4
+
+# Κακή χρήση του RUN (το Hadolint θα το εντοπίσει)
+# RUN sudo apt-get update
+# RUN apt-get install -y curl git
+
+# # Install specific version of curl and avoid installing recommended but unnecessary packages
+# RUN apt-get update && apt-get install -y --no-install-recommends curl=7.68.0-1ubuntu2.7
+
+# # Clean up APT when done to reduce image size
+# RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the pom.xml and the source code into the container
+COPY pom.xml .
+COPY src ./src
+
+# Package the application
+RUN mvn clean package
+
+# Use an official OpenJDK image to run the application
+FROM gradle:jdk17
+
+RUN mkdir -p /malware
+
+# COPY eicar_test_file.txt /malware/eicar_test_file.txt
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the packaged jar file from the build stage
+COPY --from=build /app/target/my-app-1.0-SNAPSHOT.jar app.jar
+
+# # Run the application
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
